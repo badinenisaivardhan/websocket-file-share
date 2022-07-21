@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+  </head>
+  <body>
+    <h1>RECEIVER PAGE</h1>
+  <div class="screen fs-screen">
+      <div class="files-list">
+          <div class="title">Shared Files:</div>
+         
+      </div>
+  </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/downloadjs/1.4.8/download.min.js" integrity="sha512-WiGQZv8WpmQVRUFXZywo7pHIO0G/o3RyiAJZj8YXNN4AV7ReR1RYWVmZJ6y3H06blPcjJmG/sBpOVZjTSFFlzQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+      (function(){  
+      let senderid = 1000
+      let receiverid = 2000
+      const socket = io();
+      document.body.addEventListener('click',()=>{ 
+        socket.emit('receiver-join',{
+            uid:receiverid,
+            sender_uid:senderid
+        });
+      })
+      let fileShare = {}
+     socket.on("fs-meta",(metadata)=>{
+        fileShare.metadata = metadata;
+        fileShare.transmitted = 0;
+        fileShare.buffer = [];
+
+        let el = document.createElement("div");
+        el.classList.add("item");
+        el.innerHTML=`
+            <div class="progress">0</div>
+            <div class="filename">${metadata.filename}</div>
+        `
+        document.querySelector(".files-list").appendChild(el);
+        fileShare.progress_node = el.querySelector(".progress");
+        socket.emit("fs-start",{
+            uid:senderid,
+        }) 
+    })
+      socket.on("fs-share",(buffer)=>{
+        fileShare.buffer.push(buffer);
+        fileShare.transmitted += buffer.byteLength;
+        fileShare.progress_node.innerHTML = Math.trunc(fileShare.transmitted/fileShare.metadata.total_buffer_size*100)+"%"
+        if(fileShare.transmitted == fileShare.metadata.total_buffer_size){
+            download(new Blob(fileShare.buffer),fileShare.metadata.filename);
+            fileShare = {};
+        }else{
+            socket.emit("fs-start",{
+               uid:senderid
+            })
+        }
+      })
+
+    })();
+    </script>
+  </body>
+</html>
